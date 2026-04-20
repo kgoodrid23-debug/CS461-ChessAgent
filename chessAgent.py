@@ -5,6 +5,12 @@ import chess
 import time
 from typing import Optional
 
+from IPython.display import SVG
+import chess.svg
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
+from pathlib import Path
+
 #Piece-Square Tables (from White's perspective, flipped for Black)
 #Higher = better quare for that piece
 
@@ -103,6 +109,24 @@ PIECE_TABLES = {
     chess.KING: KING_MIDDLE_TABLE
 }
 
+# Note: if trying to visual the board,
+# DON'T FORGET TO SAVE THE chessVisual.ipynb FILE and allow overwrite
+# if it is a fresh .ipynb file; otherwise proceed with whatever.
+# also RERUN the python script so the overwrite permission is 
+# active in the current game session 
+
+def visual(board):#Code to show board through Jupyter script
+    file_path = Path("chessVisual.ipynb")# Create a Path object
+    # Check if the path exists AND is a file
+    print("\nFile exists") if file_path.is_file() else print("\nFile does not exist")
+    svg_board = chess.svg.board(board=board)
+    nb = nbformat.v4.new_notebook()# 1. Create a new notebook object
+    # 2. Add a markdown cell
+    nb['cells'] = [nbformat.v4.new_code_cell(f"from IPython.display import SVG\nsvg_data = '''{svg_board}'''\nSVG(svg_data)")]
+    with open('chessVisual.ipynb', 'w') as f: nbformat.write(nb, f)# 3. Write to a file
+    ep = ExecutePreprocessor(timeout=100, kernel_name="python3")#Execute setup
+    ep.preprocess(nb, {'metadata': {'path': './'}})#Execute
+    with open("chessVisual.ipynb", "w") as f: nbformat.write(nb, f)#Save
 
 # Evaluation 
 def is_endgame(board: chess.Board) -> bool:
@@ -306,7 +330,7 @@ def get_player_move(board: chess.Board) -> chess.Move:
  
 def play_game():
     print(BANNER)
- 
+
     # Setup
     print("Choose your color:")
     print("  [w] White (you go first)")
@@ -314,27 +338,29 @@ def play_game():
     choice = input("  → ").strip().lower()
     player_color = chess.WHITE if choice == 'w' else chess.BLACK
     ai_color = chess.BLACK if player_color == chess.WHITE else chess.WHITE
- 
+
     print("\nChoose difficulty:")
     print("  [1] Easy   (depth 2)")
     print("  [2] Medium (depth 3)")
     print("  [3] Hard   (depth 4)")
     diff = input("  → ").strip()
     depth = {'1': 2, '2': 3, '3': 4}.get(diff, 3)
- 
+
     agent = ChessAgent(depth=depth, color=ai_color)
     board = chess.Board()
- 
+
     color_name = "White" if player_color == chess.WHITE else "Black"
     print(f"\n  You are playing as {color_name}. AI depth = {depth}.\n")
     print("  Enter moves in UCI (e2e4) or SAN (Nf3) format.")
     print("  Type 'quit' to exit, 'undo' to take back a move.\n")
- 
+
     move_history = []
- 
+    
+    visual(board)
+
     while not board.is_game_over():
         print_board(board)
- 
+
         status = []
         if board.is_check():
             status.append("  CHECK!")
@@ -386,11 +412,13 @@ def play_game():
  
             san = board.san(ai_move)
             board.push(ai_move)
+            visual(board)
             move_history.append(ai_move)
             print(f"\r  AI played: {san} ({elapsed:.2f}s, {agent.nodes_searched} nodes)\n")
  
     # Game over
     print_board(board)
+    visual(board)
     result = board.result()
     outcome = board.outcome()
  
