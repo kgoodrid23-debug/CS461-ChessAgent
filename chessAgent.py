@@ -3,13 +3,8 @@
 """
 import chess
 import time
-from typing import Optional
-
-from IPython.display import SVG
-import chess.svg
-import nbformat
-from nbconvert.preprocessors import ExecutePreprocessor
 from pathlib import Path
+from typing import Optional
 
 #Piece-Square Tables (from White's perspective, flipped for Black)
 #Higher = better quare for that piece
@@ -115,18 +110,49 @@ PIECE_TABLES = {
 # also RERUN the python script so the overwrite permission is 
 # active in the current game session 
 
-def visual(board):#Code to show board through Jupyter script
-    file_path = Path("chessVisual.ipynb")# Create a Path object
-    # Check if the path exists AND is a file
-    print("\nFile exists") if file_path.is_file() else print("\nFile does not exist")
-    svg_board = chess.svg.board(board=board)
-    nb = nbformat.v4.new_notebook()# 1. Create a new notebook object
-    # 2. Add a markdown cell
-    nb['cells'] = [nbformat.v4.new_code_cell(f"from IPython.display import SVG\nsvg_data = '''{svg_board}'''\nSVG(svg_data)")]
-    with open('chessVisual.ipynb', 'w') as f: nbformat.write(nb, f)# 3. Write to a file
-    ep = ExecutePreprocessor(timeout=100, kernel_name="python3")#Execute setup
-    ep.preprocess(nb, {'metadata': {'path': './'}})#Execute
-    with open("chessVisual.ipynb", "w") as f: nbformat.write(nb, f)#Save
+VISUAL_NOTEBOOK = Path("chessVisual.ipynb")
+VISUAL_WARNING_SHOWN = False
+
+
+def visual(board: chess.Board) -> bool:
+    """GD - notebook visualization that doesnt block CLI gameplay."""
+    global VISUAL_WARNING_SHOWN
+
+    try:
+        import chess.svg
+        import nbformat
+        from nbconvert.preprocessors import ExecutePreprocessor
+    except ImportError as exc:
+        if not VISUAL_WARNING_SHOWN:
+            print(f"  Notebook visualization disabled ({exc.name} is not installed).")
+            VISUAL_WARNING_SHOWN = True
+        return False
+
+    try:
+        svg_board = chess.svg.board(board=board)
+        nb = nbformat.v4.new_notebook()
+        nb["cells"] = [
+            nbformat.v4.new_code_cell(
+                "from IPython.display import SVG\n"
+                f"svg_data = {svg_board!r}\n"
+                "SVG(svg_data)"
+            )
+        ]
+
+        with open(VISUAL_NOTEBOOK, "w", encoding="utf-8") as file_obj:
+            nbformat.write(nb, file_obj)
+
+        ep = ExecutePreprocessor(timeout=100, kernel_name="python3")
+        ep.preprocess(nb, {"metadata": {"path": "./"}})
+
+        with open(VISUAL_NOTEBOOK, "w", encoding="utf-8") as file_obj:
+            nbformat.write(nb, file_obj)
+        return True
+    except Exception as exc:
+        if not VISUAL_WARNING_SHOWN:
+            print(f"  Notebook visualization disabled ({exc}).")
+            VISUAL_WARNING_SHOWN = True
+        return False
 
 # Evaluation 
 def is_endgame(board: chess.Board) -> bool:
@@ -297,7 +323,7 @@ def print_board(board: chess.Board):
     rows = str(board).split("\n")
     for i, row in enumerate(rows):
         rank = 8 - i
-        print(f" {rank}│ {row} │{rank}")
+        print(f" {rank}| {row} |{rank}")
     print("  ─────────────────")
     print("   a b c d e f g h\n")
  
@@ -335,7 +361,7 @@ def play_game():
     print("Choose your color:")
     print("  [w] White (you go first)")
     print("  [b] Black (AI goes first)")
-    choice = input("  → ").strip().lower()
+    choice = input("  -> ").strip().lower()
     player_color = chess.WHITE if choice == 'w' else chess.BLACK
     ai_color = chess.BLACK if player_color == chess.WHITE else chess.WHITE
 
@@ -343,7 +369,7 @@ def play_game():
     print("  [1] Easy   (depth 2)")
     print("  [2] Medium (depth 3)")
     print("  [3] Hard   (depth 4)")
-    diff = input("  → ").strip()
+    diff = input("  -> ").strip()
     depth = {'1': 2, '2': 3, '3': 4}.get(diff, 3)
 
     agent = ChessAgent(depth=depth, color=ai_color)
@@ -366,7 +392,7 @@ def play_game():
             status.append("  CHECK!")
         turn_name = "White" if board.turn == chess.WHITE else "Black"
         who = "You" if board.turn == player_color else "AI"
-        print(f"  Turn {board.fullmove_number} — {turn_name} to move ({who})")
+        print(f"  Turn {board.fullmove_number} - {turn_name} to move ({who})")
         if status:
             print("  " + " | ".join(status))
  
@@ -431,7 +457,7 @@ def play_game():
         else:
             print("  AI wins. Better luck next time!")
         print(f"  Result: {result} | Reason: {outcome.termination.name}")
-    print("  ═══════════════════════════════\n")
+    print("  ═══════════════════════════════")
  
  
 if __name__ == "__main__":
