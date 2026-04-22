@@ -1,0 +1,7 @@
+python-chess>=1.999
+
+# Optional notebook visualization support:
+# ipython
+# nbformat
+# nbconvert
+# ipykernel
