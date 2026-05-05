@@ -1,5 +1,4 @@
 import pygame
-import chess
 import math
 #------------------------------------------------
 """
@@ -118,7 +117,6 @@ def is_endgame(board: chess.Board) -> bool:
     )
     return queens == 0 or (queens == 2 and minor <= 2)
  
- 
 def piece_square_value(piece_type: int, square: chess.Square, color: chess.Color, endgame: bool) -> int:
     """Get the positional bonus for a piece on a given square."""
     table = KING_END_TABLE if (piece_type == chess.KING and endgame) else PIECE_TABLES[piece_type]
@@ -128,7 +126,6 @@ def piece_square_value(piece_type: int, square: chess.Square, color: chess.Color
     else:
         idx = square
     return table[idx]
- 
  
 def evaluate(board: chess.Board) -> int:
     """
@@ -258,8 +255,7 @@ class ChessAgent:
                 best_move = move
  
         return best_move
- 
- 
+
 
 # CLI Game Loop 
 BANNER = """
@@ -279,33 +275,6 @@ def print_board(board: chess.Board):
         print(f" {rank}│ {row} │{rank}")
     print("  ─────────────────")
     print("   a b c d e f g h\n")
- 
- 
-def get_player_move(board: chess.Board) -> chess.Move:
-    """Prompt the user for a move in UCI or SAN format."""
-    while True:
-        try:
-            raw = input("  Your move (e.g. e2e4 or Nf3): ").strip()
-            if not raw:
-                continue
-            # Try UCI first
-            try:
-                move = chess.Move.from_uci(raw)
-                if move in board.legal_moves:
-                    return move
-            except ValueError:
-                pass
-            # Try SAN
-            move = board.parse_san(raw)
-            if move in board.legal_moves:
-                return move
-            print("  Illegal move. Try again.")
-        except (ValueError, chess.IllegalMoveError, chess.InvalidMoveError, chess.AmbiguousMoveError) as e:
-            print(f"  Invalid: {e}. Try again.")
-        except KeyboardInterrupt:
-            print("\n\nGame aborted.")
-            exit()
- 
 
 def play_game():
     print(BANNER)
@@ -377,16 +346,15 @@ def set_board(screen):
         for y in range(1,9): 
             xpos = 62.5 * x
             ypos = 62.5*(8-y)
-            if color_bool: color_bool = False; color_string = "tan"
-            else: color_bool = True; color_string = "gray"        
+            if color_bool: color_bool = False; color_string = "blanchedalmond"
+            else: color_bool = True; color_string = "burlywood"        
             pygame.draw.rect(screen, color_string, [xpos, ypos, 63, 63])
-        if color_bool: color_bool = False; color_string = "tan"
-        else: color_bool = True; color_string = "gray"
+        if color_bool: color_bool = False; color_string = "blanchedalmond"
+        else: color_bool = True; color_string = "burlywood"
 
 def set_pieces(screen, board=None):#Need a way to reset the pieces to add the updated board pieces after the ai moves
     global arrr
     if board == None: board = chess.Board()
-    #print(f"Board: {board}")
     arrr.clear()
     arrr = [[],[],[],[],[],[],[],[]]
     board_str = str(board)
@@ -428,8 +396,9 @@ def set_pieces(screen, board=None):#Need a way to reset the pieces to add the up
 def set_check(screen):
     font = pygame.font.SysFont('Arial', 100)
     text_surface = font.render('CHECK!', True, "Black")
-    text_surface.set_alpha(10)
+    text_surface.set_alpha(100)
     screen.blit(text_surface, (100, 200))
+    
 def run_game(running, clock, board: chess.Board, player_color, move_history, agent, screen):
     while running:
         if board.is_game_over(): running = not running
@@ -448,50 +417,37 @@ def run_game(running, clock, board: chess.Board, player_color, move_history, age
                         else:
                             print("  Nothing to undo.")
                         continue
-                    # Re-use get_player_move logic inline
-                    try:
-                        try:
-                            move = chess.Move.from_uci(raw)
-                            if move not in board.legal_moves:
-                                raise ValueError("Illegal")
-                        except ValueError:
-                            move = board.parse_san(raw)
-                    except Exception as e:
-                        print(f"  Invalid move: {e}\n")
-                        continue
 
         # RENDER YOUR GAME HERE
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mpos = pygame.mouse.get_pos()
                 x,y = mpos[0],mpos[1]
+                
                 if x >= 0 and x <= 500: row = math.floor(x/63)
                 if y >= 0 and y <= 500: col = math.floor(y/63)
-                if inputs[0][0] == None:
+                
+                if inputs[0][0] == None:#this will allow the selection of the first input
                     inputs[0][0],inputs[0][1] = col,row
                     yellow_alpha = (255, 255, 0, 128)#Highlight choice color
                     rect_surface = pygame.Surface((63, 63), pygame.SRCALPHA)# Highlight color square
                     rect_surface.fill(yellow_alpha)# Highlight color's color fill
                     screen.blit(rect_surface, (row*62.5,col*62.5))#Display Highlighted color square on screen
-                elif inputs[0][0] == col and inputs[0][1] == row:
+                
+                elif inputs[0][0] == col and inputs[0][1] == row:#this will remove the first input
                     inputs[0][0],inputs[0][1] = None,None
                     set_game_visuals(screen,board)
-                elif inputs[1][0] == None:
+                
+                elif inputs[1][0] == None:#this will allow the second input
                     inputs[1][0],inputs[1][1] = col,row
-                    #This check the first inputs is a piece and the second input check for valid positions
-                    if arrr[inputs[0][0]][inputs[0][1]] == "P":
-                        if arrr[inputs[1][0]][inputs[1][1]] == ".":#empty space as a pawn = ex)f4
-                            num,letter = inputs[1][0],inputs[1][1]
-                            concat = str(alphabet[letter])+str(8-num)
-                        else:#taking piece as a pawn = ex)exf4
-                            num,letter = inputs[1][0],inputs[1][1]
-                            concat = str(alphabet[inputs[0][1]])+"x"+str(alphabet[letter])+str(8-num)
-                    else:#for every other piece [Rook, Knight, Bishop, Queen, King]
-                        moving_piece = arrr[inputs[0][0]][inputs[0][1]]
-                        num,letter = inputs[1][0],inputs[1][1]
-                        if arrr[inputs[1][0]][inputs[1][1]] == ".":concat = moving_piece+str(alphabet[letter])+str(8-num)
-                        else:concat = moving_piece+"x"+str(alphabet[letter])+str(8-num)
+                    num1,letter1 = inputs[0][0],inputs[0][1]#first position
+                    num2,letter2 = inputs[1][0],inputs[1][1]#second position
+                    concat = str(alphabet[letter1])+str(8-num1)+str(alphabet[letter2])+str(8-num2)#this is what going to be input for the move
+                    if arrr[inputs[0][0]][inputs[0][1]] == "P" and inputs[1][0] == 0:#For promotions
+                        promote_to = input("Type Q, R, B, or N: ")#This is done in the terminal, user has to interact with terminal
+                        concat = concat + promote_to
                     inputs[0][0],inputs[0][1],inputs[1][0],inputs[1][1] = None,None,None,None
                     set_game_visuals(screen,board)
+
                     #-----------------------------------------
                     status = []
                     if board.is_check(): status.append("  CHECK!")
@@ -512,20 +468,16 @@ def run_game(running, clock, board: chess.Board, player_color, move_history, age
                         except Exception as e:
                             print(f"  Invalid move: {e}\n")
                             continue
-            
                         board.push(move)
                         move_history.append(move)
                         print(f"  You played: {move.uci()}\n")
 
-                    if board.turn != player_color and running:
-                        # AI's turn
+                    if board.turn != player_color and running:# AI's turn
                         print("  AI is thinking...", end="", flush=True)
                         t0 = time.time()
                         ai_move = agent.choose_move(board)
                         elapsed = time.time() - t0
-            
-                        if ai_move is None:break
-            
+                        if ai_move is None: break
                         san = board.san(ai_move)
                         board.push(ai_move)
                         move_history.append(ai_move)
